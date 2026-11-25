@@ -19,8 +19,15 @@ import * as path from "node:path";
 // Local check (outside the grader's container):
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-const LINE =
-  "I asked for a raise and my boss booked a meeting to discuss it — the meeting could have been an email, and the email could have been a yes.";
+// Gate (kit RULES.txt): entry.txt must be UTF-8 text of 1 to 200
+// characters, not only white space.
+const GATE = { minChars: 1, maxChars: 200 } as const;
+
+// The entry line itself, built by one function so the joke text lives in
+// exactly one place and the writer below never retypes it.
+function buildEntryLine(): string {
+  return "I asked for a raise and my boss booked a meeting to discuss it — the meeting could have been an email, and the email could have been a yes.";
+}
 
 // Resolve where the entry goes. The grader runs the program with
 // $MAKEFUN_OUTPUT_DIR set to its writable output directory and reads the
@@ -34,27 +41,36 @@ function resolveOutputPath(): string {
   return path.join(process.cwd(), "output", "entry.txt");
 }
 
-const outPath = resolveOutputPath();
-fs.mkdirSync(path.dirname(outPath), { recursive: true });
+function main(): void {
+  const line = buildEntryLine();
+  const outPath = resolveOutputPath();
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
 
-fs.writeFileSync(outPath, LINE, "utf8");
+  fs.writeFileSync(outPath, line, "utf8");
 
-const readBack = fs.readFileSync(outPath, "utf8");
-const codePoints = [...readBack].length;
+  const readBack = fs.readFileSync(outPath, "utf8");
+  const codePoints = [...readBack].length;
 
-if (readBack !== LINE) {
-  console.error("Validation failed: entry.txt is not byte-identical to the line.");
-  process.exit(1);
+  if (readBack !== line) {
+    console.error("Validation failed: entry.txt is not byte-identical to the line.");
+    process.exit(1);
+  }
+  if (codePoints < GATE.minChars || codePoints > GATE.maxChars) {
+    console.error(
+      `Validation failed: ${codePoints} code points, must be ${GATE.minChars}-${GATE.maxChars}.`,
+    );
+    process.exit(1);
+  }
+  if (readBack.trim().length === 0) {
+    console.error("Validation failed: line is only whitespace.");
+    process.exit(1);
+  }
+
+  console.log(`Wrote ${codePoints} code points to ${outPath}:`);
+  console.log(readBack);
+  console.log(
+    "Validation passed: byte-identical, 1-200 code points, not only whitespace.",
+  );
 }
-if (codePoints < 1 || codePoints > 200) {
-  console.error(`Validation failed: ${codePoints} code points, must be 1-200.`);
-  process.exit(1);
-}
-if (readBack.trim().length === 0) {
-  console.error("Validation failed: line is only whitespace.");
-  process.exit(1);
-}
 
-console.log(`Wrote ${codePoints} code points to ${outPath}:`);
-console.log(readBack);
-console.log("Validation passed: byte-identical, 1-200 code points, not only whitespace.");
+main();
